@@ -1,0 +1,311 @@
+
+CREATE DATABASE Hospital
+
+CREATE TABLE Patient (
+Patient_id int(10) NOT NULL,
+First_name varchar(20) NOT NULL,
+Last_name varchar(20) NOT NULL,
+Nationality varchar(20) NOT NULL,
+Gender ENUM('Male','Female') DEFAULT NULL ,
+Address varchar(40) NOT NULL,
+DOB date NOT NULL,
+Phone int(15) NOT NULL,
+Email varchar(20),
+PRIMARY KEY(Patient_id)
+);
+
+
+
+
+
+CREATE TABLE Doctor(
+Doctor_id int(10) NOT NULL,
+First_name varchar(20) NOT NULL,
+Last_name varchar(20) NOT NULL,
+Nationality varchar(20) NOT NULL,
+Specialist varchar(20) NOT NULL,
+Phone int(15) NOT NULL,
+Email varchar(20),
+Charge decimal(7,2),
+PRIMARY KEY(Doctor_id)    
+);
+
+CREATE TABLE Appointment (
+id int(10) NOT NULL AUTO_INCREMENT,
+Patient_id int(10) NOT NULL,
+Doctor_id int(10) NOT NULL,
+Reg_date datetime NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+APP_date date NOT NULL,
+APP_time time NOT NULL,
+PRIMARY KEY(id),
+FOREIGN KEY(Patient_id) REFERENCES patient(Patient_id),
+FOREIGN KEY(doctor_id) REFERENCES doctor(doctor_id)
+)AUTO_INCREMENT=1001;
+
+CREATE TABLE Bill(
+Bill_no int(10) AUTO_INCREMENT ,
+Patient_id int(10) NOT NULL,
+Doctor_id int(10) NOT NULL,
+Doctor_charge decimal(7,2),
+Service_charge decimal(7,2) DEFAULT 600,
+Room_charge decimal(7,2),
+Total decimal(7,2) DEFAULT 0,
+PRIMARY KEY(Bill_no),
+FOREIGN KEY(Patient_id) REFERENCES patient(Patient_id),
+FOREIGN KEY(doctor_id) REFERENCES doctor(doctor_id)
+) AUTO_INCREMENT=2001;
+
+
+CREATE TABLE Room(
+Room_no int(10) NOT NULL,
+Patient_id int(10) Default NULL,
+Room_type ENUM('Normal','Premium') DEFAULT NULL , 
+Statuss ENUM('Full','Empty') DEFAULT NULL ,
+Charge decimal(7,2),
+PRIMARY KEY(Room_no),
+FOREIGN KEY(Patient_id) REFERENCES patient(Patient_id)
+);
+
+
+CREATE TABLE Staff(
+Staff_id int(10) NOT NULL,
+Name varchar(20) NOT NULL,
+Salary decimal(7,2),
+Phone int(15) NOT NULL,
+PRIMARY KEY(Staff_id)
+);
+
+
+
+
+DELIMITER $$
+
+CREATE TRIGGER billing_and_update_charges
+AFTER INSERT ON Appointment
+FOR EACH ROW
+BEGIN
+    -- Insert a new record into the Bill table and set Doctor_charge and Room_charge
+    INSERT INTO Bill (Patient_id, Doctor_id, Doctor_charge, Room_charge)
+    VALUES (
+        NEW.Patient_id, 
+        NEW.Doctor_id, 
+        (SELECT Charge FROM Doctor WHERE Doctor_id = NEW.Doctor_id),
+        (SELECT Charge FROM Room WHERE Patient_id = NEW.Patient_id)
+    );
+
+ 
+    -- Calculate and update the Total field in the Bill table
+    UPDATE Bill
+    SET Total = COALESCE(Doctor_charge, 0) + COALESCE(Service_charge, 0) + COALESCE(Room_charge, 0)
+    WHERE Patient_id = NEW.Patient_id AND Doctor_id = NEW.Doctor_id;
+END$$
+
+DELIMITER ;
+
+
+DELIMITER
+//
+    CREATE TRIGGER upd_room BEFORE Insert ON room
+    FOR EACH ROW BEGIN
+      IF (NEW.Patient_id IS NULL ) THEN
+            SET NEW.Statuss = 'Empty';
+      ELSE
+           SET NEW.Statuss = 'Full';
+      END IF;
+    END
+    //
+DELIMITER ;
+
+INSERT INTO `patient`(`Patient_id`, `First_name`, `Last_name`, `Nationality`, `Gender`, `Address`, `DOB`, `Phone`, `Email`) VALUES 
+('101','Akramul','Islam','BD','Male','Mirpur','1999-02-25','01812345678','akram@gmail.com'),
+('102','Tahsin','Mahmud','BD','Male','Dhanmondi','1997-04-13','01715356489','tahsin@gmail.com'),
+('103','Delowar','Hossain','Italy','Male','Rome','1990-05-03','02134679','delowar@gmail.com'),
+('104','Sadia','Rahman','BD','Female','Shewrapara','1998-09-18','01736149782','sadia@gmail.com'),
+('105','Tushar','Ahmed','BD','Male','Mirpur','2000-01-20','01912362145','tushar@gmail.com'),
+('106','Kashfia','Islam','BD','Female','Jessore','2003-02-15','01423597888','kashfia@gmail.com'),
+('107','Shawn','Michale','USA','Male','New York','1988-06-22','09134679','shawn@gmail.com'),
+('108','Charlotte','Flair','USA','Female','San Fransico','1993-02-28','09361425','charlotte@gmail.com'),
+('109','Chang','Lee','Japan','Male','Tokyo','1990-08-26','07132564','chang@gmail.com'),
+('110','Fahad','Khan','Ind','Male','New Delhi','2001-05-14','01113467928','fahad@gmail.com');
+
+
+INSERT INTO `doctor`(`Doctor_id`, `First_name`, `Last_name`, `Nationality`, `Specialist`, `Phone`, `Email`, `Charge`) VALUES 
+('201','Tarek','hassan','BD','Nose','553688','tarek@gmail.com','2500'),
+('202','Akbar','Ali','BD','Diabetic','53396397','akbar@gmail.com','2000'),
+('203','Abdur','Rahim','USA','Bone','7979676','abdur@gmail.com','3000'),
+('204','Azizur','Rahman','BD','Psychiatry','9771121','azizur@gmail.com','2200'),
+('205','Shamsul','Haque','BD','Heart','1363784178','shamsul@gmail.com','2000'),
+('206','Rama','Dhar','IND','Neurological','78912456','rama@gmail.com','2500');
+
+
+
+INSERT INTO `bill`(`Bill_no`, `Patient_id`, `Doctor_id`, `Service_charge`, `Room_charge`) VALUES ('501','102','203','200','100'),
+('502','103','202','100','300');
+
+INSERT INTO `room`(`Room_no`, `Patient_id`, `Room_type`,`Charge`) 
+VALUES ('501','101','Normal','200');
+INSERT INTO `room`(`Room_no`, `Patient_id`, `Room_type`,`Charge`) 
+VALUES ('502','102','Premium','500');
+INSERT INTO `room`(`Room_no`, `Room_type`,`Charge`) 
+VALUES ('503','Normal','200');
+INSERT INTO `room`(`Room_no`, `Room_type`,`Charge`) 
+VALUES ('504','Premium','500');
+INSERT INTO `room`(`Room_no`, `Patient_id`, `Room_type`,`Charge`) 
+VALUES ('505','105','Normal','200');
+INSERT INTO `room`(`Room_no`, `Room_type`,`Charge`) 
+VALUES ('506','Premium','500');
+
+
+INSERT INTO `appointment`(`Patient_id`, `Doctor_id`, `APP_date`, `APP_time`)
+VALUES ('101','203','2022-06-22','08:00:00'),
+('102','204','2022-06-20','08:00:00'),
+('103','201','2022-06-22','10:00:00'),
+('104','206','2022-06-22','08:00:00'),
+('105','203','2022-06-22','09:00:00'),
+('106','205','2022-06-24','09:00:00'),
+('107','202','2022-06-22','08:00:00'),
+('108','201','2022-06-22','11:00:00'),
+('109','206','2022-06-22','10:00:00'),
+('110','203','2022-06-23','08:00:00');
+
+
+INSERT INTO `staff`(`Staff_id`, `Name`, `Salary`, `Phone`) 
+VALUES ('701','Rahim','8000','4854561'),
+('702','Masud','10000','63436693'),
+('703','Foysal','5000','365434'),
+('704','Shawana','6000','4638563'),
+('705','Toufiq','9000','634634'),
+('706','Samiha','7500','466346'),
+('707','Lita','8000','977635'),
+('708','Junaed','9200','4689634');
+
+
+Query
+
+
+UPDATE `bill` SET `Service_charge`='600'
+
+#doctor charge  update on bill
+ UPDATE bill
+ INNER JOIN doctor ON bill.Doctor_id = doctor.Doctor_id
+    SET bill.Doctor_charge = doctor.Charge
+    WHERE doctor.Doctor_id = bill.Doctor_id;
+
+
+#room charge  update on bill
+ UPDATE bill
+ INNER JOIN room ON bill.Patient_id = room.Patient_id
+    SET bill.room_charge = room.Charge
+    WHERE room.Patient_id = bill.Patient_id;
+
+------------
+USE hospital;
+DROP DATABASE hospital;
+DESCRIBE patient;
+SELECT * FROM patient;
+ALTER TABLE patient ADD no int(10) AFTER Patient_id;
+ALTER TABLE patient ALTER COLUMN no varchar(5);
+ALTER TABLE patient DROP COLUMN no;
+ALTER TABLE Persons CHANGE COLUMN Address Present_Address varchar(40);
+
+UPDATE patient
+SET Phone = '12345', Email = 'abcdgmail.com'
+WHERE Patient_id = 101;
+
+SELECT count(Patient_id) AS "No. of patient"
+FROM patient;
+
+
+SELECT Patient_id 
+FROM patient 
+WHERE Patient_id BETWEEN 105 and 108;
+
+SELECT First_name 
+FROM patient
+WHERE First_name like 'Ak%'
+
+
+SELECT *
+FROM patient
+WHERE Patient_id != 102;
+
+SELECT Patient_id,First_name,Last_name   FROM `patient` WHERE Address='Mirpur'
+
+
+SELECT count(Patient_id) AS "Addmitted Patient"
+FROM room;
+
+SELECT count(*) "Available rooms"
+FROM room
+WHERE Statuss='Empty';
+
+
+
+SELECT patient.First_name,patient.Last_name,doctor.First_name,doctor.Last_name
+FROM patient
+JOIN appointment
+ON patient.Patient_id=appointment.Patient_id
+JOIN doctor
+ON appointment.Doctor_id=doctor.Doctor_id;
+
+SELECT
+  Doctor_charge, Service_charge, Room_charge,
+   COALESCE(Doctor_charge,0) + COALESCE(Service_charge,0) + COALESCE(Room_charge,0) AS "Total"
+FROM bill;
+
+
+SELECT
+patient.Patient_id,patient.First_name,patient.Last_name,
+   COALESCE(Doctor_charge,0) + COALESCE(Service_charge,0) + COALESCE(Room_charge,0) AS "Total"
+FROM bill
+JOIN patient
+on bill.Patient_id=patient.Patient_id;
+
+
+SELECT
+patient.Patient_id,patient.First_name,patient.Last_name,
+   MAX(COALESCE(Doctor_charge,0) + COALESCE(Service_charge,0) + COALESCE(Room_charge,0)) AS "Total"
+FROM bill
+JOIN patient
+on bill.Patient_id=patient.Patient_id;
+
+
+SELECT
+patient.Patient_id,patient.First_name,patient.Last_name,
+   ((COALESCE(Doctor_charge,0) + COALESCE(Service_charge,0) + COALESCE(Room_charge,0))-((COALESCE(Doctor_charge,0) + COALESCE(Service_charge,0) + COALESCE(Room_charge,0))*.1) )AS "Total"
+FROM bill
+JOIN patient
+on bill.Patient_id=patient.Patient_id;
+
+DROP TABLE patient;
+
+
+ UPDATE bill
+ INNER JOIN room ON bill.Patient_id = room.Patient_id
+    SET bill.room_charge = room.Charge
+    WHERE room.Patient_id = bill.Patient_id;
+
+ UPDATE bill
+ INNER JOIN doctor ON bill.Doctor_id = doctor.Doctor_id
+    SET bill.Doctor_charge = doctor.Charge
+    WHERE doctor.Doctor_id = bill.Doctor_id;
+
+
+SELECT MAX(Salary) 
+FROM staff 
+WHERE Salary < (SELECT MAX(Salary) 
+FROM staff);
+
+
+SELECT Salary,Name 
+FROM staff 
+ORDER BY Salary desc limit 1,1;
+
+SELECT Patient_id,MAX(Doctor_charge) 
+FROM bill
+WHERE Patient_id BETWEEN 104 and 108
+GROUP BY Patient_id
+HAVING MAX(Doctor_charge) >2000;
+
+
+
